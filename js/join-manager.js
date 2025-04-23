@@ -1,0 +1,140 @@
+/**
+ * Join Manager module
+ * Handles the process of joining friends' games
+ */
+
+// State tracking for join attempts
+const joinStates = {};
+
+/**
+ * Start the process of joining a friend's game
+ * @param {string} friend_id - Steam ID of the friend to join
+ */
+async function startJoin(friend_id) {
+    const steam_id = document.getElementById('steam_id').value.trim();
+    const api_key = document.getElementById('api_key').value.trim();
+    const interval_ms = 500; // Жёстко задано 500 мс
+    joinStates[friend_id] = {
+        status: 'waiting',
+        cancelled: false,
+        interval: null
+    };
+    UIManager.updateJoinButton(friend_id, 'waiting');
+    UIManager.updateDot(friend_id, 'waiting');
+    // Periodically update UI to reflect join state
+    joinStates[friend_id].interval = setInterval(() => {
+        const status = joinStates[friend_id]?.status || 'cancelled';
+        UIManager.updateDot(friend_id, status);
+        UIManager.updateJoinButton(friend_id, status);
+        if (status === 'joined' || status === 'cancelled') {
+            clearInterval(joinStates[friend_id].interval);
+        }
+    }, 1000);
+    joinLoop(friend_id, steam_id, api_key, interval_ms);
+}
+
+/**
+ * The main loop for joining a friend's game
+ * @param {string} friend_id
+ * @param {string} user_steam_id
+ * @param {string} api_key
+ * @param {number} interval_ms
+ */
+async function joinLoop(friend_id, user_steam_id, api_key, interval_ms) {
+    let interval = Math.max(100, interval_ms);
+    let missingSince = null;
+    let lastKnownPersona = null;
+    let lastKnownAvatar = null;
+    while (true) {
+        if (joinStates[friend_id]?.cancelled) break;
+        // Try to get connect info for the friend
+        const current_connect = await SteamAPI.getFriendConnectInfo(friend_id, api_key);
+        if (!current_connect) {
+            // Проверяем, есть ли друг в casual (через getFriendsStatuses)
+            const statuses = await SteamAPI.getFriendsStatuses([friend_id], api_key);
+            const friendStatus = statuses && statuses.length ? statuses[0] : null;
+            if (!friendStatus || !friendStatus.can_join) {
+                // Друг не в casual — отмечаем как "missing"
+                if (!missingSince) {
+                    missingSince = Date.now();
+                    // Сохраняем имя и аватар для отображения
+                    lastKnownPersona = friendStatus?.personaname || joinStates[friend_id]?.personaname || 'Unknown';
+                    lastKnownAvatar = friendStatus?.avatar || joinStates[friend_id]?.avatar || '';
+                }
+                joinStates[friend_id].status = "missing";
+                joinStates[friend_id].personaname = lastKnownPersona;
+                joinStates[friend_id].avatar = lastKnownAvatar;
+                // Если прошло больше минуты — отменяем попытку подключения и убираем из списка
+                if (Date.now() - missingSince > 60000) {
+                    cancelJoin(friend_id);
+                    break;
+                }
+            } else {
+                // Друг снова в casual — сбрасываем таймер
+                missingSince = null;
+                lastKnownPersona = friendStatus.personaname;
+                lastKnownAvatar = friendStatus.avatar;
+                joinStates[friend_id].status = "waiting";
+            }
+            await new Promise(r => setTimeout(r, interval));
+            continue;
+        }
+        joinStates[friend_id].status = "connecting";
+        // Attempt to join the friend's game via Steam protocol
+        const url = `steam://rungame/730/${friend_id}/${current_connect}`;
+        window.open(url, "_self");
+        await new Promise(r => setTimeout(r, interval));
+        // Check if user has joined the same server as the friend
+        const user_server = await SteamAPI.getUserGameServerSteamId(user_steam_id, api_key);
+        const friend_server = await SteamAPI.getUserGameServerSteamId(friend_id, api_key);
+        if (user_server && friend_server && user_server === friend_server) {
+            joinStates[friend_id].status = "joined";
+            // Остановить все joinLoop (включая текущий)
+            Object.keys(joinStates).forEach(fid => {
+                cancelJoin(fid);
+            });
+            break;
+        }
+        await new Promise(r => setTimeout(r, interval));
+    }
+    if (joinStates[friend_id]?.status !== "joined") {
+        joinStates[friend_id].status = "cancelled";
+    }
+}
+
+/**
+ * Cancel an ongoing join attempt
+ * @param {string} friend_id - Steam ID of the friend whose join attempt to cancel
+ */
+function cancelJoin(friend_id) {
+    if (joinStates[friend_id]?.interval) {
+        clearInterval(joinStates[friend_id].interval);
+    }
+    joinStates[friend_id] = {
+        ...joinStates[friend_id],
+        status: 'cancelled',
+        cancelled: true
+    };
+    UIManager.updateDot(friend_id, 'cancelled');
+    UIManager.updateJoinButton(friend_id, 'cancelled');
+    // Reset button and dot after a short time
+    setTimeout(() => {
+        UIManager.updateDot(friend_id, 'cancelled');
+        UIManager.updateJoinButton(friend_id, 'cancelled');
+    }, 200);
+}
+
+/**
+ * Get the current join states for all tracked friends
+ * @returns {Object} - Copy of the joinStates object
+ */
+function getJoinStates() {
+    return { ...joinStates };
+}
+
+// Public API for JoinManager
+const JoinManager = {
+    startJoin,
+    cancelJoin,
+    getJoinStates
+};

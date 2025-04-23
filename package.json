@@ -1,0 +1,30 @@
+{
+  "name": "cs2-casual-enjoyer",
+  "version": "0.1.5",
+  "description": "CS2 Casual Enjoyer Electron App",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "cs2casualenjoyer",
+    "productName": "CS2 Casual Enjoyer",
+    "files": [
+      "**/*"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "assets/icon.ico"
+    },
+    "icon": "assets/icon.ico",
+    "asar": true,
+    "compression": "maximum",
+    "publish": null
+  },
+  "author": "skik4",
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^26.0.12"
+  }
+}
