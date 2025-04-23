@@ -845,3 +845,16 @@ hr, .input-row, .center-row {
     color: var(--white);
     background: none;
 }
+
+.valid-input {
+    border: 1px solid green !important;
+    background-color: rgba(0, 255, 0, 0.05) !important;
+}
+.invalid-input {
+    border: 1px solid red !important;
+    background-color: rgba(255, 0, 0, 0.05) !important;
+}
+.disabled-link {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+}
