@@ -38,14 +38,14 @@ function parseRichPresence(kv) {
 /**
  * Get the user's friends list
  * @param {string} steam_id - SteamID64 of the user
- * @param {string} api_key - Steam Web API key or webapi_token
+ * @param {string} auth - Steam Web API key or webapi_token
  * @returns {Promise<Array>} - Array of friend SteamIDs
  */
-async function getFriendsList(steam_id, api_key) {
+async function getFriendsList(steam_id, auth) {
     try {
-        if (isWebApiToken(api_key)) {
+        if (isWebApiToken(auth)) {
             // Use IFriendsListService for tokens
-            let url = `${STEAM_API_BASE}/IFriendsListService/GetFriendsList/v1/?access_token=${encodeURIComponent(api_key)}`;
+            let url = `${STEAM_API_BASE}/IFriendsListService/GetFriendsList/v1/?access_token=${encodeURIComponent(auth)}`;
             const resp = await fetch(url);
             if (!resp.ok) throw new Error(`API_ERROR_${resp.status}`);
             const data = await resp.json();
@@ -56,7 +56,7 @@ async function getFriendsList(steam_id, api_key) {
             return data.response.friendslist.friends.map(f => f.ulfriendid);
         } else {
             // Use ISteamUser for classic API key
-            let url = `${STEAM_API_BASE}/ISteamUser/GetFriendList/v1/?steamid=${encodeURIComponent(steam_id)}&relationship=friend&key=${encodeURIComponent(api_key)}`;
+            let url = `${STEAM_API_BASE}/ISteamUser/GetFriendList/v1/?steamid=${encodeURIComponent(steam_id)}&relationship=friend&key=${encodeURIComponent(auth)}`;
             const resp = await fetch(url);
             if (resp.status === 401) throw new Error('PRIVATE_FRIENDS_LIST');
             if (!resp.ok) throw new Error(`API_ERROR_${resp.status}`);
@@ -72,25 +72,28 @@ async function getFriendsList(steam_id, api_key) {
 
 /**
  * Fetch player summaries (including avatar URLs) for up to 100 SteamIDs at a time.
+ * @param {string} auth
  * @param {Array<string>} steamids - Array of SteamID64 strings (max 100 per call)
- * @param {string} api_key
  * @returns {Promise<Object>} - Map of steamid -> player summary object
  */
-async function getPlayerSummaries(steamids, api_key) {
+async function getPlayerSummaries(auth, steamids) {
     if (!steamids.length) return {};
     const result = {};
     // Split into chunks of 100
     for (let i = 0; i < steamids.length; i += 100) {
         const chunk = steamids.slice(i, i + 100);
-        let url = `${STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v2/?steamids=${chunk.join(',')}`;
-        if (isWebApiToken(api_key)) {
-            url += `&access_token=${encodeURIComponent(api_key)}`;
+        let url;
+        if (isWebApiToken(auth)) {
+            // Для токена используем GetUserSummaries
+            url = `${STEAM_API_BASE}/ISteamUserOAuth/GetUserSummaries/v1/?access_token=${encodeURIComponent(auth)}&steamids=${chunk.join(',')}`;
         } else {
-            url += `&key=${encodeURIComponent(api_key)}`;
+            // Для ключа используем GetPlayerSummaries
+            url = `${STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v2/?key=${encodeURIComponent(auth)}&steamids=${chunk.join(',')}`;
         }
         const resp = await fetch(url);
         if (!resp.ok) continue;
         const data = await resp.json();
+        // Для обоих эндпоинтов структура похожа: data.response.players
         if (data.response && data.response.players) {
             for (const player of data.response.players) {
                 result[player.steamid] = player;
@@ -103,18 +106,18 @@ async function getPlayerSummaries(steamids, api_key) {
 /**
  * Get details about friends including their game status and avatars
  * @param {Array} friend_ids - Array of SteamIDs
- * @param {string} api_key - Steam Web API key or webapi_token
+ * @param {string} auth - Steam Web API key or webapi_token
  * @param {Object} [avatarsCache] - Optional: map of steamid -> avatar URL
  * @returns {Promise<Array>} - Array of friend status objects
  */
-async function getFriendsStatuses(friend_ids, api_key, avatarsCache = {}) {
+async function getFriendsStatuses(friend_ids, auth, avatarsCache = {}) {
     if (!friend_ids.length) return [];
     try {
         const params = new URLSearchParams();
-        if (isWebApiToken(api_key)) {
-            params.append("access_token", api_key);
+        if (isWebApiToken(auth)) {
+            params.append("access_token", auth);
         } else {
-            params.append("key", api_key);
+            params.append("key", auth);
         }
         friend_ids.forEach((sid, idx) => params.append(`steamids[${idx}]`, sid));
         const url = `${STEAM_API_BASE}/IPlayerService/GetPlayerLinkDetails/v1/?${params.toString()}`;
@@ -127,7 +130,7 @@ async function getFriendsStatuses(friend_ids, api_key, avatarsCache = {}) {
         let avatarMap = avatarsCache;
         if (!avatarMap || Object.keys(avatarMap).length === 0) {
             const steamids = accounts.map(acc => (acc.public_data || {}).steamid).filter(Boolean);
-            avatarMap = await getPlayerSummaries(steamids, api_key);
+            avatarMap = await getPlayerSummaries(auth, steamids);
         }
 
         // Filter for friends playing CS:GO (app id 730)
@@ -171,16 +174,16 @@ async function getFriendsStatuses(friend_ids, api_key, avatarsCache = {}) {
 /**
  * Get connect information for a specific friend
  * @param {string} friend_id - SteamID64 of the friend
- * @param {string} api_key - Steam Web API key or webapi_token
+ * @param {string} auth - Steam Web API key or webapi_token
  * @returns {Promise<string|null>} - Connect string or null if unavailable
  */
-async function getFriendConnectInfo(friend_id, api_key) {
+async function getFriendConnectInfo(friend_id, auth) {
     try {
         const params = new URLSearchParams();
-        if (isWebApiToken(api_key)) {
-            params.append("access_token", api_key);
+        if (isWebApiToken(auth)) {
+            params.append("access_token", auth);
         } else {
-            params.append("key", api_key);
+            params.append("key", auth);
         }
         params.append("steamids[0]", friend_id);
         const url = `${STEAM_API_BASE}/IPlayerService/GetPlayerLinkDetails/v1/?${params.toString()}`;
@@ -205,16 +208,16 @@ async function getFriendConnectInfo(friend_id, api_key) {
 /**
  * Get the game server Steam ID for a user
  * @param {string} steam_id - SteamID64 of the user
- * @param {string} api_key - Steam Web API key or webapi_token
+ * @param {string} auth - Steam Web API key or webapi_token
  * @returns {Promise<string|null>} - Server SteamID or null
  */
-async function getUserGameServerSteamId(steam_id, api_key) {
+async function getUserGameServerSteamId(steam_id, auth) {
     try {
         const params = new URLSearchParams();
-        if (isWebApiToken(api_key)) {
-            params.append("access_token", api_key);
+        if (isWebApiToken(auth)) {
+            params.append("access_token", auth);
         } else {
-            params.append("key", api_key);
+            params.append("key", auth);
         }
         params.append("steamids[0]", steam_id);
         const url = `${STEAM_API_BASE}/IPlayerService/GetPlayerLinkDetails/v1/?${params.toString()}`;
@@ -235,13 +238,13 @@ async function getUserGameServerSteamId(steam_id, api_key) {
 /**
  * Get all casual friends in one call
  * @param {string} steam_id - SteamID64 of the user
- * @param {string} api_key - Steam Web API key
+ * @param {string} auth - Steam Web API key or webapi_token
  * @returns {Promise<Array>} - Array of friends in casual mode
  */
-async function getCasualFriends(steam_id, api_key) {
+async function getCasualFriends(steam_id, auth) {
     try {
-        const friends = await getFriendsList(steam_id, api_key);
-        const statuses = await getFriendsStatuses(friends, api_key);
+        const friends = await getFriendsList(steam_id, auth);
+        const statuses = await getFriendsStatuses(friends, auth);
         return statuses.filter(f => f.can_join);
     } catch (error) {
         console.error("Error getting casual friends:", error);
