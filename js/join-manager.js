@@ -89,10 +89,13 @@ async function joinLoop(friend_id, user_steam_id, api_key, interval_ms) {
         const friend_server = await SteamAPI.getUserGameServerSteamId(friend_id, api_key);
         if (user_server && friend_server && user_server === friend_server) {
             joinStates[friend_id].status = "joined";
-            // Остановить все joinLoop (включая текущий)
+            // Stop all join loops except the current one
             Object.keys(joinStates).forEach(fid => {
-                cancelJoin(fid);
+                if (fid !== friend_id) cancelJoin(fid);
             });
+            // Keep the green status for 1.5 seconds before resetting
+            await new Promise(r => setTimeout(r, 1500));
+            cancelJoin(friend_id);
             break;
         }
         await new Promise(r => setTimeout(r, interval));
@@ -132,9 +135,22 @@ function getJoinStates() {
     return { ...joinStates };
 }
 
+/**
+ * Reset all join states and stop all join loops
+ */
+function resetAll() {
+    Object.keys(joinStates).forEach(fid => {
+        if (joinStates[fid]?.interval) {
+            clearInterval(joinStates[fid].interval);
+        }
+        delete joinStates[fid];
+    });
+}
+
 // Public API for JoinManager
 const JoinManager = {
     startJoin,
     cancelJoin,
-    getJoinStates
+    getJoinStates,
+    resetAll
 };

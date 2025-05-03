@@ -285,6 +285,10 @@ async function updateFriendsList() {
             avatars: AppState.savedAvatars
         });
         AppState.usingSavedFriends = true;
+        // Reset all join cycles and states when updating friends
+        if (window.JoinManager && typeof window.JoinManager.resetAll === "function") {
+            window.JoinManager.resetAll();
+        }
         await fetchAndRenderFriendsByIds(AppState.savedFriendsIds, apiKeyOrToken);
         startAutoRefresh();
     } catch (error) {
@@ -372,12 +376,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             validateInputs();
             const token = extractTokenIfAny(AppState.savedSettings.auth || "");
             if (token) {
-                window.electronAPI.log('info', "Detected saved token, auto-refreshing friends list via API (privacy ignored)");
-                setTimeout(() => {
-                    AppState.initialLoadAttempted = true;
-                    updateFriendsList();
-                }, 500);
-            } else if (AppState.savedSettings.steam_id && AppState.savedSettings.auth && AppState.savedSettings.friends_ids && AppState.savedSettings.friends_ids.length > 0) {
+                const info = parseWebApiToken(token);
+                // Only auto-refresh if token is not expired
+                if (info && info.expires && info.expires * 1000 > Date.now()) {
+                    window.electronAPI.log('info', "Detected valid saved token, auto-refreshing friends list via API (privacy ignored)");
+                    setTimeout(() => {
+                        AppState.initialLoadAttempted = true;
+                        updateFriendsList();
+                    }, 500);
+                } else {
+                    window.electronAPI.log('info', "Token is missing or expired, not auto-refreshing friends list");
+                    UIManager.updateFriendsStatus('Your Steam Web API Token is expired. Please get a new one and click "Update Friends List".');
+                }
+            } else if (
+                AppState.savedSettings.steam_id &&
+                AppState.savedSettings.auth &&
+                AppState.savedSettings.friends_ids &&
+                AppState.savedSettings.friends_ids.length > 0 &&
+                validateApiKey(AppState.savedSettings.auth)
+            ) {
                 window.electronAPI.log('info', `Found ${AppState.savedSettings.friends_ids.length} saved friend IDs in settings`);
                 setTimeout(() => {
                     AppState.initialLoadAttempted = true;
@@ -410,6 +427,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (parsed?.data?.webapi_token) token = parsed.data.webapi_token;
             } catch {}
             if (!token && /^[\w-]+\.[\w-]+\.[\w-]+$/.test(val)) token = val;
+            // --- Сбросить join-циклы при смене токена/ключа ---
+            if (window.JoinManager && typeof window.JoinManager.resetAll === "function") {
+                window.JoinManager.resetAll();
+            }
             if (token) {
                 const info = parseWebApiToken(token);
                 if (info && info.steamid) {
@@ -432,6 +453,3 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 0);
     }
 });
-
-// Optionally export for testing or modularization
-// export { updateFriendsList, startAutoRefresh, validateInputs, fetchAndRenderFriendsByIds };
