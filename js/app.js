@@ -271,8 +271,6 @@ async function updateFriendsList() {
         for (const sid of allFriendIds) {
             if (avatarsMap[sid]) {
                 AppState.savedAvatars[sid] = {
-                    avatar: avatarsMap[sid].avatar,
-                    avatarmedium: avatarsMap[sid].avatarmedium,
                     avatarfull: avatarsMap[sid].avatarfull
                 };
             }
@@ -371,6 +369,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 AppState.usingSavedFriends = true;
             }
             if (AppState.savedSettings.avatars && typeof AppState.savedSettings.avatars === 'object') {
+                // Only avatarfull is now stored, so just assign as is
                 AppState.savedAvatars = AppState.savedSettings.avatars;
             }
             validateInputs();
