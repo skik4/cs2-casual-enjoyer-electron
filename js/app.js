@@ -266,7 +266,7 @@ async function updateFriendsList() {
             UIManager.showError("No friends found in your friends list.", steam_id);
             return;
         }
-        const avatarsMap = await SteamAPI.getPlayerSummaries(allFriendIds, apiKeyOrToken);
+        const avatarsMap = await SteamAPI.getPlayerSummaries(apiKeyOrToken, allFriendIds);
         AppState.savedAvatars = {};
         for (const sid of allFriendIds) {
             if (avatarsMap[sid]) {

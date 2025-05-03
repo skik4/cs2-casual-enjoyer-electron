@@ -77,23 +77,30 @@ async function getFriendsList(steam_id, auth) {
  * @returns {Promise<Object>} - Map of steamid -> player summary object
  */
 async function getPlayerSummaries(auth, steamids) {
+    // Ensure steamids is always an array
+    if (!Array.isArray(steamids)) {
+        if (typeof steamids === "string" && steamids.length > 0) {
+            steamids = [steamids];
+        } else if (!steamids) {
+            return {};
+        } else {
+            throw new Error("steamids must be an array or string");
+        }
+    }
     if (!steamids.length) return {};
     const result = {};
     // Split into chunks of 100
     for (let i = 0; i < steamids.length; i += 100) {
-        const chunk = steamids.slice(i, i + 100);
+        const chunk = steamids.slice(i, i + 100).map(String);
         let url;
         if (isWebApiToken(auth)) {
-            // Для токена используем GetUserSummaries
             url = `${STEAM_API_BASE}/ISteamUserOAuth/GetUserSummaries/v1/?access_token=${encodeURIComponent(auth)}&steamids=${chunk.join(',')}`;
         } else {
-            // Для ключа используем GetPlayerSummaries
             url = `${STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v2/?key=${encodeURIComponent(auth)}&steamids=${chunk.join(',')}`;
         }
         const resp = await fetch(url);
         if (!resp.ok) continue;
         const data = await resp.json();
-        // Для обоих эндпоинтов структура похожа: data.response.players
         if (data.response && data.response.players) {
             for (const player of data.response.players) {
                 result[player.steamid] = player;
