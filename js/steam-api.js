@@ -93,7 +93,8 @@ async function getPlayerSummaries(auth, steamids) {
     for (let i = 0; i < steamids.length; i += 100) {
         const chunk = steamids.slice(i, i + 100).map(String);
         let url;
-        if (isWebApiToken(auth)) {
+        const usingToken = isWebApiToken(auth);
+        if (usingToken) {
             url = `${STEAM_API_BASE}/ISteamUserOAuth/GetUserSummaries/v1/?access_token=${encodeURIComponent(auth)}&steamids=${chunk.join(',')}`;
         } else {
             url = `${STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v2/?key=${encodeURIComponent(auth)}&steamids=${chunk.join(',')}`;
@@ -101,10 +102,20 @@ async function getPlayerSummaries(auth, steamids) {
         const resp = await fetch(url);
         if (!resp.ok) continue;
         const data = await resp.json();
-        if (data.response && data.response.players) {
-            for (const player of data.response.players) {
-                result[player.steamid] = player;
+        let players = [];
+        if (usingToken) {
+            // OAuth: top-level "players"
+            if (Array.isArray(data.players)) {
+                players = data.players;
             }
+        } else {
+            // API key: "response.players"
+            if (data.response && Array.isArray(data.response.players)) {
+                players = data.response.players;
+            }
+        }
+        for (const player of players) {
+            result[player.steamid] = player;
         }
     }
     return result;
