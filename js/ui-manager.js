@@ -12,7 +12,7 @@ const STATUS_DOT_CLASSES = {
     connecting: 'dot-connecting',
     joined: 'dot-joined',
     cancelled: 'dot-cancelled',
-    missing: 'dot-missing' // Фиолетовый — временно пропал из casual, но идет попытка подключения
+    missing: 'dot-missing' // Purple — temporarily missing from casual, but attempting to connect
 };
 
 /**
@@ -92,7 +92,7 @@ function renderFriendsList(friends, joinStates = {}) {
     let html = '';
     for (const friend of filteredFriends) {
         const avatarUrl = friend.avatarfull || friend.avatar || friend.avatarmedium || '';
-        // Если у друга есть статус missing в joinStates — показываем как missing
+        // If the friend has a missing status in joinStates — show as missing
         const joinState = joinStates[friend.steamid];
         const isMissing = joinState && joinState.status === 'missing';
         html += `
@@ -131,20 +131,20 @@ function renderFriendsList(friends, joinStates = {}) {
 }
 
 /**
- * Показывает уведомление с возможностью закрытия
- * @param {string} html - HTML-содержимое уведомления
+ * Show a notification with close button
+ * @param {string} html - HTML content of the notification
  */
 function showNotification(html) {
     const errorElement = $id('error');
     if (!errorElement) return;
 
-    // Flex-шапка с кнопкой закрытия
+    // Flex header with close button
     const closeBtnHtml = `<div class="notification-header"><span class="notification-close-btn" title="Close">&times;</span></div>`;
-    // Весь текст уведомления — в отдельном div для рамки и центрирования
+    // All notification text — in a separate div for border and centering
     errorElement.innerHTML = closeBtnHtml + `<div class="notification-content">${html}</div>`;
     errorElement.style.display = 'block';
 
-    // Кнопка закрытия
+    // Close button
     const closeBtn = errorElement.querySelector('.notification-close-btn');
     if (closeBtn) {
         closeBtn.onclick = () => {
@@ -154,7 +154,7 @@ function showNotification(html) {
 }
 
 /**
- * Показывает постоянное уведомление о токене (steamid и срок действия)
+ * Show persistent notification about token (steamid and expiration)
  * @param {{steamid: string, expires: number, expiresDate: Date}} tokenInfo
  */
 function showTokenInfoNotification(tokenInfo) {
@@ -193,7 +193,7 @@ function showTokenInfoNotification(tokenInfo) {
 }
 
 /**
- * Скрыть уведомление о токене
+ * Hide token info notification
  */
 function hideTokenInfoNotification() {
     const infoDiv = $id('token-info-notification');
@@ -201,8 +201,8 @@ function hideTokenInfoNotification() {
 }
 
 /**
- * Получить HTML для предупреждения о приватности
- * @param {string} linkHtml - HTML для ссылки на настройки приватности
+ * Get HTML for privacy warning
+ * @param {string} linkHtml - HTML for privacy settings link
  * @returns {string}
  */
 function getPrivacyWarningHtml(linkHtml) {
@@ -223,7 +223,7 @@ function getPrivacyWarningHtml(linkHtml) {
 }
 
 /**
- * Показать ошибку обновления списка друзей (использует showNotification)
+ * Show error updating friends list (uses showNotification)
  * @param {string} steamId
  */
 function showUpdateError(steamId = '') {
@@ -239,7 +239,7 @@ function showUpdateError(steamId = '') {
 }
 
 /**
- * Показать ошибку пользователю (использует showNotification)
+ * Show error to the user (uses showNotification)
  * @param {string|Error} message
  * @param {string} steamId
  */
@@ -268,7 +268,7 @@ function showError(message, steamId = '') {
 }
 
 /**
- * Скрыть уведомление
+ * Hide notification
  */
 function hideError() {
     const errorElement = $id('error');
@@ -321,7 +321,7 @@ function showSteamIdHelp() {
             The app will automatically convert your profile URL to a SteamID64.
         </div>
     `;
-    
+
     showNotification(helpHtml);
 }
 
@@ -382,6 +382,8 @@ const UIManager = {
     showTokenInfoNotification,
     hideTokenInfoNotification
 };
+
+export default UIManager;
 
 // --- Add filter handler immediately ---
 document.addEventListener('DOMContentLoaded', () => {

@@ -4,7 +4,7 @@
   "description": "CS2 Casual Enjoyer Electron App",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "electron . --remote-debugging-port=9222",
     "dist": "electron-builder"
   },
   "build": {

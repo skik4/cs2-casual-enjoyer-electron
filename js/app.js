@@ -1,6 +1,24 @@
+import SteamAPI from './steam-api.js';
+import UIManager from './ui-manager.js';
+import JoinManager from './join-manager.js';
+
 // =====================
 // App State
 // =====================
+
+/**
+ * @typedef {Object} AppStateType
+ * @property {Array} friendsData
+ * @property {number|null} friendsRefreshInterval
+ * @property {Object|null} savedSettings
+ * @property {boolean} usingSavedFriends
+ * @property {Array} savedFriendsIds
+ * @property {Object} savedAvatars
+ * @property {number} autoRefreshIntervalMs
+ * @property {boolean} initialLoadAttempted
+ */
+
+/** @type {AppStateType} */
 const AppState = {
     friendsData: [],
     friendsRefreshInterval: null,
@@ -13,60 +31,36 @@ const AppState = {
 };
 
 // =====================
-// Utility Functions
+// Validation and UI
 // =====================
 
-function extractTokenIfAny(authInput) {
-    try {
-        const parsed = JSON.parse(authInput);
-        if (parsed?.data?.webapi_token) return parsed.data.webapi_token;
-    } catch {}
-    if (/^[\w-]+\.[\w-]+\.[\w-]+$/.test(authInput)) return authInput;
-    return null;
-}
-
-function extractApiKeyOrToken(apiKeyInput) {
-    try {
-        const parsed = JSON.parse(apiKeyInput);
-        if (parsed?.data?.webapi_token) return parsed.data.webapi_token;
-    } catch {}
-    if (/^[\w-]+\.[\w-]+\.[\w-]+$/.test(apiKeyInput)) return apiKeyInput;
-    return apiKeyInput;
-}
-
+/**
+ * Validate SteamID64
+ * @param {string} steamId
+ * @returns {boolean}
+ */
 function validateSteamId(steamId) {
     return /^\d{17}$/.test(steamId);
 }
 
+/**
+ * Validate API key or token
+ * @param {string} apiKey
+ * @returns {boolean}
+ */
 function validateApiKey(apiKey) {
     const keyRegex = /^[A-Z0-9]{32}$/i;
     const tokenRegex = /^[\w-]+\.[\w-]+\.[\w-]+$/;
     try {
         const parsed = JSON.parse(apiKey);
         if (parsed?.data?.webapi_token) return true;
-    } catch {}
+    } catch { }
     return keyRegex.test(apiKey) || tokenRegex.test(apiKey);
 }
 
-function parseWebApiToken(token) {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    try {
-        const payload = JSON.parse(atob(parts[1]));
-        return {
-            steamid: payload.sub,
-            expires: payload.exp,
-            expiresDate: new Date(payload.exp * 1000)
-        };
-    } catch {
-        return null;
-    }
-}
-
-// =====================
-// Validation and UI
-// =====================
-
+/**
+ * Validate input fields and update UI
+ */
 function validateInputs() {
     const steamId = document.getElementById('steam_id').value.trim();
     const auth = document.getElementById('api_key').value.trim();
@@ -114,6 +108,10 @@ function validateInputs() {
 // Event Handlers
 // =====================
 
+/**
+ * Handle paste event for SteamID input
+ * @param {ClipboardEvent} event
+ */
 function handleSteamIdPaste(event) {
     const pastedText = (event.clipboardData || window.clipboardData).getData('text');
     if (pastedText.includes('steamcommunity.com')) {
@@ -140,7 +138,7 @@ function handleSteamIdPaste(event) {
                     const originalValue = steamIdInput.value;
                     steamIdInput.value = "Resolving vanity URL...";
                     steamIdInput.disabled = true;
-                    resolveVanityUrl(vanityUrl, auth)
+                    SteamAPI.resolveVanityUrl(vanityUrl, auth)
                         .then(steamId => {
                             if (steamId) {
                                 steamIdInput.value = steamId;
@@ -169,45 +167,34 @@ function handleSteamIdPaste(event) {
     }
 }
 
-async function resolveVanityUrl(vanityUrl, auth) {
-    try {
-        window.electronAPI.log('info', `Resolving vanity URL: ${vanityUrl}`);
-        const apiKeyOrToken = extractApiKeyOrToken(auth);
-        let url = `https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?vanityurl=${vanityUrl}&url_type=1`;
-        if (/^[A-Z0-9]{32}$/i.test(apiKeyOrToken)) {
-            url += `&key=${apiKeyOrToken}`;
-        } else if (/^[\w-]+\.[\w-]+\.[\w-]+$/.test(apiKeyOrToken)) {
-            url += `&access_token=${apiKeyOrToken}`;
-        }
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
-        const data = await response.json();
-        if (data.response && data.response.success === 1 && data.response.steamid) {
-            window.electronAPI.log('info', `Resolved vanity URL to SteamID64: ${data.response.steamid}`);
-            return data.response.steamid;
-        } else {
-            window.electronAPI.log('warn', `Failed to resolve vanity URL: ${JSON.stringify(data.response)}`);
-            return null;
-        }
-    } catch (error) {
-        window.electronAPI.log('error', `Error resolving vanity URL: ${error.message}`);
-        throw error;
-    }
-}
-
 // =====================
 // API Calls and Data Flow
 // =====================
 
+/**
+ * Fetch and render friends by their IDs
+ * @param {Array} friendIds
+ * @param {string} auth
+ * @param {boolean} [keepStates=false]
+ * @returns {Promise<Array>}
+ */
 async function fetchAndRenderFriendsByIds(friendIds, auth, keepStates = false) {
     if (!friendIds || !friendIds.length) {
         console.error("No friend IDs provided to fetchAndRenderFriendsByIds");
         return [];
     }
     try {
-        const apiKeyOrToken = extractApiKeyOrToken(auth);
-        const allStatuses = await SteamAPI.getFriendsStatuses(friendIds, apiKeyOrToken, AppState.savedAvatars);
-        AppState.friendsData = allStatuses.filter(f => f.can_join);
+        const apiClient = SteamAPI.createSteamApiClient(auth);
+        const allStatuses = await apiClient.getFriendsStatuses(friendIds, AppState.savedAvatars);
+        const casualFriends = allStatuses.filter(f => f.can_join);
+        console.log(`[DEBUG] Friends in Casual mode (${casualFriends.length}):`, casualFriends.map(f => ({
+            steamid: f.steamid,
+            personaname: f.personaname,
+            status: f.status,
+            game_map: f.game_map,
+            connect: f.connect
+        })));
+        AppState.friendsData = casualFriends;
         const joinStates = keepStates ? JoinManager.getJoinStates() : {};
         UIManager.renderFriendsList(AppState.friendsData, joinStates);
         return AppState.friendsData;
@@ -218,6 +205,9 @@ async function fetchAndRenderFriendsByIds(friendIds, auth, keepStates = false) {
     }
 }
 
+/**
+ * Update friends list
+ */
 async function updateFriendsList() {
     let steam_id = document.getElementById('steam_id').value.trim();
     let auth = document.getElementById('api_key').value.trim();
@@ -242,7 +232,7 @@ async function updateFriendsList() {
         localStorage.removeItem('hide_privacy_warning');
         AppState.usingSavedFriends = false;
     }
-    const apiKeyOrToken = extractApiKeyOrToken(auth);
+    const apiClient = SteamAPI.createSteamApiClient(auth);
     const updateBtn = document.getElementById('updateFriendsBtn');
     if (updateBtn) {
         updateBtn.disabled = true;
@@ -251,7 +241,8 @@ async function updateFriendsList() {
     try {
         let allFriendIds = [];
         try {
-            allFriendIds = await SteamAPI.getFriendsList(steam_id, apiKeyOrToken);
+            allFriendIds = await apiClient.getFriendsList(steam_id);
+            console.log(`[DEBUG] Total friends fetched: ${allFriendIds.length}`);
             UIManager.hideError();
         } catch (err) {
             UIManager.showError(err, steam_id);
@@ -266,7 +257,7 @@ async function updateFriendsList() {
             UIManager.showError("No friends found in your friends list.", steam_id);
             return;
         }
-        const avatarsMap = await SteamAPI.getPlayerSummaries(apiKeyOrToken, allFriendIds);
+        const avatarsMap = await apiClient.getPlayerSummaries(allFriendIds);
         AppState.savedAvatars = {};
         for (const sid of allFriendIds) {
             if (avatarsMap[sid]) {
@@ -278,16 +269,15 @@ async function updateFriendsList() {
         AppState.savedFriendsIds = allFriendIds;
         await window.electronAPI.saveSettings({
             steam_id,
-            auth: apiKeyOrToken,
+            auth: auth,
             friends_ids: AppState.savedFriendsIds,
             avatars: AppState.savedAvatars
         });
         AppState.usingSavedFriends = true;
-        // Reset all join cycles and states when updating friends
         if (window.JoinManager && typeof window.JoinManager.resetAll === "function") {
             window.JoinManager.resetAll();
         }
-        await fetchAndRenderFriendsByIds(AppState.savedFriendsIds, apiKeyOrToken);
+        await fetchAndRenderFriendsByIds(AppState.savedFriendsIds, auth);
         startAutoRefresh();
     } catch (error) {
         console.error("Error during friends refresh:", error);
@@ -300,17 +290,20 @@ async function updateFriendsList() {
     }
 }
 
+/**
+ * Start auto-refresh for friends list
+ */
 async function startAutoRefresh() {
     const auth = document.getElementById('api_key').value.trim();
-    const apiKeyOrToken = extractApiKeyOrToken(auth);
+    const apiClient = SteamAPI.createSteamApiClient(auth);
     UIManager.updateFriendsStatus('Loading friends in Casual mode...');
     window.electronAPI.log('info', `Starting auto-refresh with ${AppState.savedFriendsIds.length} saved friends`);
     try {
-        await fetchAndRenderFriendsByIds(AppState.savedFriendsIds, apiKeyOrToken, true);
+        await fetchAndRenderFriendsByIds(AppState.savedFriendsIds, auth, true);
         if (AppState.friendsRefreshInterval) clearInterval(AppState.friendsRefreshInterval);
         AppState.friendsRefreshInterval = setInterval(() => {
             if (AppState.usingSavedFriends && AppState.savedFriendsIds.length) {
-                fetchAndRenderFriendsByIds(AppState.savedFriendsIds, apiKeyOrToken, true)
+                fetchAndRenderFriendsByIds(AppState.savedFriendsIds, auth, true)
                     .catch(error => {
                         window.electronAPI.log('warn', "Auto-refresh fetch failed: " + error.message);
                     });
@@ -352,7 +345,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         AppState.savedSettings = await window.electronAPI.loadSettings();
         if (AppState.savedSettings && AppState.savedSettings.api_key) {
-            AppState.savedSettings.auth = extractApiKeyOrToken(AppState.savedSettings.api_key);
+            AppState.savedSettings.auth = SteamAPI.extractApiKeyOrToken(AppState.savedSettings.api_key);
             delete AppState.savedSettings.api_key;
             await window.electronAPI.saveSettings({ ...AppState.savedSettings });
         }
@@ -369,14 +362,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 AppState.usingSavedFriends = true;
             }
             if (AppState.savedSettings.avatars && typeof AppState.savedSettings.avatars === 'object') {
-                // Only avatarfull is now stored, so just assign as is
                 AppState.savedAvatars = AppState.savedSettings.avatars;
             }
             validateInputs();
-            const token = extractTokenIfAny(AppState.savedSettings.auth || "");
+            const token = SteamAPI.extractTokenIfAny(AppState.savedSettings.auth || "");
             if (token) {
-                const info = parseWebApiToken(token);
-                // Only auto-refresh if token is not expired
+                const info = SteamAPI.parseWebApiToken(token);
                 if (info && info.expires && info.expires * 1000 > Date.now()) {
                     window.electronAPI.log('info', "Detected valid saved token, auto-refreshing friends list via API (privacy ignored)");
                     setTimeout(() => {
@@ -424,14 +415,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const parsed = JSON.parse(val);
                 if (parsed?.data?.webapi_token) token = parsed.data.webapi_token;
-            } catch {}
+            } catch { }
             if (!token && /^[\w-]+\.[\w-]+\.[\w-]+$/.test(val)) token = val;
-            // --- Сбросить join-циклы при смене токена/ключа ---
             if (window.JoinManager && typeof window.JoinManager.resetAll === "function") {
                 window.JoinManager.resetAll();
             }
             if (token) {
-                const info = parseWebApiToken(token);
+                const info = SteamAPI.parseWebApiToken(token);
                 if (info && info.steamid) {
                     const steamIdInput = document.getElementById('steam_id');
                     if (steamIdInput && (!steamIdInput.value || steamIdInput.value !== info.steamid)) {

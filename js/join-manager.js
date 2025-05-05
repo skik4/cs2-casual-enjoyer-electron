@@ -12,8 +12,9 @@ const joinStates = {};
  */
 async function startJoin(friend_id) {
     const steam_id = document.getElementById('steam_id').value.trim();
-    const api_key = document.getElementById('api_key').value.trim();
-    const interval_ms = 500; // Жёстко задано 500 мс
+    const api_key_raw = document.getElementById('api_key').value.trim();
+    const api_key = SteamAPI.extractApiKeyOrToken ? SteamAPI.extractApiKeyOrToken(api_key_raw) : api_key_raw;
+    const interval_ms = 500;
     joinStates[friend_id] = {
         status: 'waiting',
         cancelled: false,
@@ -35,10 +36,10 @@ async function startJoin(friend_id) {
 
 /**
  * The main loop for joining a friend's game
- * @param {string} friend_id
- * @param {string} user_steam_id
- * @param {string} api_key
- * @param {number} interval_ms
+ * @param {string} friend_id - Steam ID of the friend to join
+ * @param {string} user_steam_id - Steam ID of the user
+ * @param {string} api_key - API key for Steam API
+ * @param {number} interval_ms - Interval in milliseconds for the loop
  */
 async function joinLoop(friend_id, user_steam_id, api_key, interval_ms) {
     let interval = Math.max(100, interval_ms);
@@ -50,27 +51,27 @@ async function joinLoop(friend_id, user_steam_id, api_key, interval_ms) {
         // Try to get connect info for the friend
         const current_connect = await SteamAPI.getFriendConnectInfo(friend_id, api_key);
         if (!current_connect) {
-            // Проверяем, есть ли друг в casual (через getFriendsStatuses)
+            // Check if the friend is in casual (via getFriendsStatuses)
             const statuses = await SteamAPI.getFriendsStatuses([friend_id], api_key);
             const friendStatus = statuses && statuses.length ? statuses[0] : null;
             if (!friendStatus || !friendStatus.can_join) {
-                // Друг не в casual — отмечаем как "missing"
+                // Friend is not in casual — mark as "missing"
                 if (!missingSince) {
                     missingSince = Date.now();
-                    // Сохраняем имя и аватар для отображения
+                    // Save name and avatar for display
                     lastKnownPersona = friendStatus?.personaname || joinStates[friend_id]?.personaname || 'Unknown';
                     lastKnownAvatar = friendStatus?.avatar || joinStates[friend_id]?.avatar || '';
                 }
                 joinStates[friend_id].status = "missing";
                 joinStates[friend_id].personaname = lastKnownPersona;
                 joinStates[friend_id].avatar = lastKnownAvatar;
-                // Если прошло больше минуты — отменяем попытку подключения и убираем из списка
+                // If more than a minute has passed — cancel the connection attempt and remove from the list
                 if (Date.now() - missingSince > 60000) {
                     cancelJoin(friend_id);
                     break;
                 }
             } else {
-                // Друг снова в casual — сбрасываем таймер
+                // Friend is back in casual — reset the timer
                 missingSince = null;
                 lastKnownPersona = friendStatus.personaname;
                 lastKnownAvatar = friendStatus.avatar;
@@ -154,3 +155,5 @@ const JoinManager = {
     getJoinStates,
     resetAll
 };
+
+export default JoinManager;
