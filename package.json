@@ -1,6 +1,6 @@
 {
   "name": "cs2-casual-enjoyer",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "CS2 Casual Enjoyer Electron App",
   "main": "main.js",
   "scripts": {
