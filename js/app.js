@@ -48,7 +48,7 @@ function validateSteamId(steamId) {
  * @param {string} apiKey
  * @returns {boolean}
  */
-function validateApiKey(apiKey) {
+function validateApiAuth(apiKey) {
     const keyRegex = /^[A-Z0-9]{32}$/i;
     const tokenRegex = /^[\w-]+\.[\w-]+\.[\w-]+$/;
     try {
@@ -68,7 +68,7 @@ function validateInputs() {
     const privacyLink = document.querySelector('.privacy-link');
 
     const validSteamId = validateSteamId(steamId);
-    const validApiKey = validateApiKey(auth);
+    const validApiKey = validateApiAuth(auth);
     const hasSaved = AppState.savedSettings && AppState.savedSettings.steam_id && AppState.savedSettings.auth;
     const enableBtn = (validSteamId && validApiKey) || hasSaved;
 
@@ -215,6 +215,7 @@ async function updateFriendsList() {
         if (!steam_id && AppState.savedSettings.steam_id) steam_id = AppState.savedSettings.steam_id;
         if (!auth && AppState.savedSettings.auth) auth = AppState.savedSettings.auth;
     }
+    auth = SteamAPI.extractApiKeyOrToken(auth);
     if (!steam_id || !auth) {
         UIManager.showError("Please enter your SteamID64 and API Key");
         return;
@@ -223,8 +224,8 @@ async function updateFriendsList() {
         UIManager.showError("Invalid SteamID64. It should be a 17-digit number.");
         return;
     }
-    if (!validateApiKey(auth)) {
-        UIManager.showError("Invalid API Key or webapi_token.");
+    if (!validateApiAuth(auth)) {
+        UIManager.showError("Invalid API Key or token.");
         return;
     }
     if (AppState.savedSettings &&
@@ -267,7 +268,7 @@ async function updateFriendsList() {
             }
         }
         AppState.savedFriendsIds = allFriendIds;
-        await window.electronAPI.saveSettings({
+        const saveResult = await window.electronAPI.saveSettings({
             steam_id,
             auth: auth,
             friends_ids: AppState.savedFriendsIds,
@@ -383,7 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 AppState.savedSettings.auth &&
                 AppState.savedSettings.friends_ids &&
                 AppState.savedSettings.friends_ids.length > 0 &&
-                validateApiKey(AppState.savedSettings.auth)
+                validateApiAuth(AppState.savedSettings.auth)
             ) {
                 window.electronAPI.log('info', `Found ${AppState.savedSettings.friends_ids.length} saved friend IDs in settings`);
                 setTimeout(() => {
