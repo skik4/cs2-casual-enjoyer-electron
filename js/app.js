@@ -215,6 +215,7 @@ async function updateFriendsList() {
         if (!steam_id && AppState.savedSettings.steam_id) steam_id = AppState.savedSettings.steam_id;
         if (!auth && AppState.savedSettings.auth) auth = AppState.savedSettings.auth;
     }
+    auth = SteamAPI.extractApiKeyOrToken(auth);
     if (!steam_id || !auth) {
         UIManager.showError("Please enter your SteamID64 and API Key");
         return;
@@ -267,7 +268,7 @@ async function updateFriendsList() {
             }
         }
         AppState.savedFriendsIds = allFriendIds;
-        await window.electronAPI.saveSettings({
+        const saveResult = await window.electronAPI.saveSettings({
             steam_id,
             auth: auth,
             friends_ids: AppState.savedFriendsIds,

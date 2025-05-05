@@ -32,12 +32,14 @@ If you want to build the application yourself:
 ### Installation
 
 1. **Clone the repository:**
+
    ```sh
    git clone https://github.com/yourusername/cs2-casual-enjoyer-electron.git
    cd cs2-casual-enjoyer-electron
    ```
 
 2. **Install dependencies:**
+
    ```sh
    npm install
    ```
@@ -45,6 +47,7 @@ If you want to build the application yourself:
 ### Running in Development Mode
 
 To start the application in development mode:
+
 ```sh
 npm start
 ```
@@ -52,9 +55,11 @@ npm start
 ### Building the App
 
 To build a portable version of the application for Windows:
+
 ```sh
 npm run dist
 ```
+
 The built files will be located in the `dist` directory.
 
 ## License
@@ -62,4 +67,5 @@ The built files will be located in the `dist` directory.
 MIT
 
 ---
-*Created by skik4*
+
+### Created by skik4
