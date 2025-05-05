@@ -35,6 +35,11 @@ To start the application in development mode:
 npm start
 ```
 
+## How to Use
+
+After the first launch, click on the label **"Steam Web API Token / Key"** in the application.  
+A detailed instruction will be shown on how to obtain your Steam API token or key.
+
 ## Building the App
 
 To build a portable version of the application for Windows:
