@@ -1,3 +1,7 @@
+import JoinManager from './join-manager.js';
+
+let lastRenderedFriends = []; // <-- добавьте это в начало файла (после импортов)
+
 /**
  * UI Manager module
  * Handles all UI rendering and updates
@@ -61,7 +65,7 @@ function renderFriendsList(friends, joinStates = {}) {
     const friendsContainer = $id('friends');
     if (!friendsContainer) return;
 
-    window.lastRenderedFriends = Array.isArray(friends) ? [...friends] : [];
+    lastRenderedFriends = Array.isArray(friends) ? [...friends] : [];
 
     let sortedFriends = [...friends].sort((a, b) => {
         const nameA = (a.personaname || '').toLowerCase();
@@ -385,13 +389,17 @@ const UIManager = {
 
 export default UIManager;
 
-// --- Add filter handler immediately ---
+/**
+ * Attach filter input handler for friends list
+ * Re-renders the friends list as the user types in the filter field
+ * Uses the last rendered friends and current join states
+ */
 document.addEventListener('DOMContentLoaded', () => {
     const filterInput = $id('friend-filter-input');
     if (filterInput) {
         filterInput.addEventListener('input', () => {
-            if (window.lastRenderedFriends && typeof UIManager.renderFriendsList === 'function') {
-                UIManager.renderFriendsList(window.lastRenderedFriends, (window.JoinManager && window.JoinManager.getJoinStates && window.JoinManager.getJoinStates()) || {});
+            if (lastRenderedFriends && typeof UIManager.renderFriendsList === 'function') {
+                UIManager.renderFriendsList(lastRenderedFriends, (JoinManager && JoinManager.getJoinStates && JoinManager.getJoinStates()) || {});
             }
         });
     }

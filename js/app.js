@@ -401,7 +401,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } else {
             window.electronAPI.log('info', "No saved settings found");
-            UIManager.updateFriendsStatus('Enter your Steam ID and API Key, then click "Update Friends List"');
+            UIManager.updateFriendsStatus(
+                'Enter your <b>Steam Web API Token</b> (recommended) or <b>API Key</b> (with Steam ID),<br>' +
+                'then click <b>Update Friends List</b>.<br>' +
+                'To get them, click <b>Steam Web API Token / Key</b> or <b>SteamID64</b> above.'
+            );
         }
     } catch (error) {
         window.electronAPI.log('error', 'Error during app initialization: ' + error.message);
