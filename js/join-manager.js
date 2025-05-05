@@ -1,3 +1,6 @@
+import SteamAPI from './steam-api.js';
+import UIManager from './ui-manager.js';
+
 /**
  * Join Manager module
  * Handles the process of joining friends' games
