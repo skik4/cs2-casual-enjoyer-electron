@@ -9,13 +9,27 @@
 - Tokens are valid for 24 hours and are obtained by redirecting you to the installed Steam client on your computer.
 - The app notifies you and can automate the connection process as soon as a slot is detected in your friend's match.
 
-## Requirements
+## How to Run
+
+The easiest way to use the application is to download the prebuilt `.exe` from the [GitHub Releases](https://github.com/skik4/cs2-casual-enjoyer-electron/releases) page and run it directly.  
+No installation of Node.js or other dependencies is required.
+
+## How to Use
+
+After the first launch, click on the label **"Steam Web API Token / Key"** in the application.  
+A detailed instruction will be shown on how to obtain your Steam API token or key.
+
+## Building from Source
+
+If you want to build the application yourself:
+
+### Requirements
 
 - [Node.js](https://nodejs.org/) (v16 or higher recommended)
 - [Git](https://git-scm.com/) (optional, for cloning the repository)
 - A valid Steam API key or session token
 
-## Installation
+### Installation
 
 1. **Clone the repository:**
    ```sh
@@ -28,19 +42,14 @@
    npm install
    ```
 
-## Running the App
+### Running in Development Mode
 
 To start the application in development mode:
 ```sh
 npm start
 ```
 
-## How to Use
-
-After the first launch, click on the label **"Steam Web API Token / Key"** in the application.  
-A detailed instruction will be shown on how to obtain your Steam API token or key.
-
-## Building the App
+### Building the App
 
 To build a portable version of the application for Windows:
 ```sh
