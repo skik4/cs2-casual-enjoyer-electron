@@ -49,14 +49,13 @@ async function joinLoop(friend_id, user_steam_id, auth, interval_ms) {
     let missingSince = null;
     let lastKnownPersona = null;
     let lastKnownAvatar = null;
-    const apiClient = SteamAPI.createSteamApiClient(auth);
     while (true) {
         if (joinStates[friend_id]?.cancelled) break;
         // Try to get connect info for the friend
-        const current_connect = await apiClient.getFriendConnectInfo(friend_id);
+        const current_connect = await SteamAPI.getFriendConnectInfo(friend_id, auth);
         if (!current_connect) {
             // Check if the friend is in casual (via getFriendsStatuses)
-            const statuses = await apiClient.getFriendsStatuses([friend_id]);
+            const statuses = await SteamAPI.getFriendsStatuses([friend_id], auth);
             const friendStatus = statuses && statuses.length ? statuses[0] : null;
             if (!friendStatus || !friendStatus.can_join) {
                 // Friend is not in casual — mark as "missing"
@@ -90,8 +89,8 @@ async function joinLoop(friend_id, user_steam_id, auth, interval_ms) {
         window.open(url, "_self");
         await new Promise(r => setTimeout(r, interval));
         // Check if user has joined the same server as the friend
-        const user_server = await apiClient.getUserGameServerSteamId(user_steam_id);
-        const friend_server = await apiClient.getUserGameServerSteamId(friend_id);
+        const user_server = await SteamAPI.getUserGameServerSteamId(user_steam_id, auth);
+        const friend_server = await SteamAPI.getUserGameServerSteamId(friend_id, auth);
         if (user_server && friend_server && user_server === friend_server) {
             joinStates[friend_id].status = "joined";
             // Stop all join loops except the current one

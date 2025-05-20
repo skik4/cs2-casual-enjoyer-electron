@@ -1,6 +1,6 @@
 {
   "name": "cs2-casual-enjoyer",
-  "version": "0.1.8",
+  "version": "0.2.0",
   "description": "CS2 Casual Enjoyer Electron App",
   "main": "main.js",
   "scripts": {
@@ -24,7 +24,11 @@
   },
   "author": "skik4",
   "devDependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^7.27.1",
+    "@babel/preset-env": "^7.27.2",
     "electron": "^29.0.0",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
   }
 }

@@ -24,3 +24,10 @@ temp/
 # System files
 .DS_Store
 Thumbs.db
+
+# Test files
+__tests__/
+
+# Configuration files
+jest.config.json
+.babelrc
