@@ -1,6 +1,6 @@
 # CS2 Casual Enjoyer
 
-**CS2 Casual Enjoyer** is an Electron-based desktop application that automates the process of joining a friend's Casual match in Counter-Strike 2 (CS2). Steam does not provide a built-in feature for this in CS2, and the Steam client may show outdated or delayed information about available slots in a match. This app helps you connect to your friend's Casual game as soon as a slot becomes available, improving your experience and saving time.
+**CS2 Casual Enjoyer** is an Electron-based desktop application that automates the process of joining a friend's Casual match in Counter-Strike 2 (CS2). Steam does not provide a built-in feature for this in CS2, and the Steam client may show outdated or delayed information about available slots in a match. This app helps you connect to your friend's Casual match as soon as a slot becomes available, improving your experience and saving time.
 
 ## How It Works
 
