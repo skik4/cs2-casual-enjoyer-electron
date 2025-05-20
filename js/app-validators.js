@@ -25,3 +25,11 @@ export function validateApiAuth(auth) {
     } catch { }
     return keyRegex.test(auth) || tokenRegex.test(auth);
 }
+
+// Public API for AppValidators
+const AppValidators = {
+    validateSteamId,
+    validateApiAuth
+};
+
+export default AppValidators;

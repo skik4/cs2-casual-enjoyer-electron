@@ -2,9 +2,7 @@
 // App State
 // =====================
 
-/**
- * AppState stores the application state
- */
+// Public API for the AppState
 const AppState = {
     friendsData: [],
     friendsRefreshInterval: null,

@@ -57,7 +57,7 @@ async function joinLoop(friend_id, user_steam_id, auth, interval_ms) {
             // Check if the friend is in casual (via getFriendsStatuses)
             const statuses = await SteamAPI.getFriendsStatuses([friend_id], auth);
             const friendStatus = statuses && statuses.length ? statuses[0] : null;
-            if (!friendStatus || !friendStatus.can_join) {
+            if (!friendStatus || !friendStatus.in_casual_mode) {
                 // Friend is not in casual — mark as "missing"
                 if (!missingSince) {
                     missingSince = Date.now();
@@ -86,7 +86,7 @@ async function joinLoop(friend_id, user_steam_id, auth, interval_ms) {
         joinStates[friend_id].status = "connecting";
         // Attempt to join the friend's game via Steam protocol
         const url = `steam://rungame/730/${friend_id}/${current_connect}`;
-        window.open(url, "_self");
+        open(url, "_self");
         await new Promise(r => setTimeout(r, interval));
         // Check if user has joined the same server as the friend
         const user_server = await SteamAPI.getUserGameServerSteamId(user_steam_id, auth);

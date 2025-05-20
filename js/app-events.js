@@ -4,8 +4,9 @@
 
 import SteamAPI from './steam-api.js';
 import UIManager from './ui-manager.js';
+import App from './app.js';
 import AppState from './app-state.js';
-import { validateSteamId, validateApiAuth } from './app-validators.js';
+import AppValidators from './app-validators.js';
 
 // Cached DOM elements
 const steamIdInput = document.getElementById('steam_id');
@@ -87,8 +88,8 @@ export function validateInputs() {
     const updateBtn = updateFriendsBtn;
     const privacyLink = document.querySelector('.privacy-link');
 
-    const validSteamId = validateSteamId(steamId);
-    const validApiKey = validateApiAuth(auth);
+    const validSteamId = AppValidators.validateSteamId(steamId);
+    const validApiKey = AppValidators.validateApiAuth(auth);
     const hasSaved = AppState.savedSettings && AppState.savedSettings.steam_id && AppState.savedSettings.auth;
     const enableBtn = (validSteamId && validApiKey) || hasSaved;
 
@@ -125,7 +126,7 @@ export function validateInputs() {
  * Setup all main app event listeners
  */
 export function setupAppEventListeners() {
-    if (updateFriendsBtn) updateFriendsBtn.addEventListener('click', window.updateFriendsList);
+    if (updateFriendsBtn) updateFriendsBtn.addEventListener('click', App.updateFriendsList);
     if (steamIdInput) steamIdInput.addEventListener('input', validateInputs);
     if (authInput) authInput.addEventListener('input', validateInputs);
     if (steamIdInput) steamIdInput.addEventListener('paste', handleSteamIdPaste);
@@ -137,3 +138,11 @@ export function setupAppEventListeners() {
         UIManager.showApiKeyHelp();
     });
 }
+
+// Public API for AppEvents
+const AppEvents = {
+    validateInputs,
+    setupAppEventListeners
+};
+
+export default AppEvents;

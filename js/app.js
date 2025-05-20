@@ -2,8 +2,8 @@ import SteamAPI from './steam-api.js';
 import UIManager from './ui-manager.js';
 import JoinManager from './join-manager.js';
 import AppState from './app-state.js';
-import { validateSteamId, validateApiAuth } from './app-validators.js';
-import { handleSteamIdPaste, validateInputs, setupAppEventListeners } from './app-events.js';
+import AppValidators from './app-validators.js';
+import AppEvents from './app-events.js';
 
 // =====================
 // Cached DOM Elements & Getters
@@ -39,14 +39,7 @@ async function fetchAndRenderFriendsByIds(friendIds, auth, keepStates = false) {
     }
     try {
         const allStatuses = await SteamAPI.getFriendsStatuses(friendIds, auth, AppState.savedAvatars);
-        const casualFriends = allStatuses.filter(f => f.can_join);
-        console.log(`[DEBUG] Friends in Casual mode (${casualFriends.length}):`, casualFriends.map(f => ({
-            steamid: f.steamid,
-            personaname: f.personaname,
-            status: f.status,
-            game_map: f.game_map,
-            connect: f.connect
-        })));
+        const casualFriends = allStatuses.filter(friend => friend.in_casual_mode);
         AppState.friendsData = casualFriends;
         const joinStates = keepStates ? JoinManager.getJoinStates() : {};
         UIManager.renderFriendsList(AppState.friendsData, joinStates);
@@ -73,11 +66,11 @@ async function updateFriendsList() {
         UIManager.showError("Please enter your SteamID64 and API Key");
         return;
     }
-    if (!validateSteamId(steam_id)) {
+    if (!AppValidators.validateSteamId(steam_id)) {
         UIManager.showError("Invalid SteamID64. It should be a 17-digit number.");
         return;
     }
-    if (!validateApiAuth(auth)) {
+    if (!AppValidators.validateApiAuth(auth)) {
         UIManager.showError("Invalid API Key or token.");
         return;
     }
@@ -95,7 +88,6 @@ async function updateFriendsList() {
         let allFriendIds = [];
         try {
             allFriendIds = await SteamAPI.getFriendsList(steam_id, auth);
-            console.log('[SteamAPI] FriendsList (ids):', allFriendIds);
             UIManager.hideError();
         } catch (err) {
             UIManager.showError(err, steam_id);
@@ -111,7 +103,6 @@ async function updateFriendsList() {
             return;
         }
         const avatarsMap = await SteamAPI.getPlayerSummaries(allFriendIds, auth);
-        console.log('[SteamAPI] PlayerSummaries:', avatarsMap);
         AppState.savedAvatars = {};
         for (const sid of allFriendIds) {
             if (avatarsMap[sid]) {
@@ -122,9 +113,7 @@ async function updateFriendsList() {
         }
         AppState.savedFriendsIds = allFriendIds;
         const statuses = await SteamAPI.getFriendsStatuses(AppState.savedFriendsIds, auth, AppState.savedAvatars);
-        console.log('[SteamAPI] FriendsStatuses:', statuses);
-        const casualFriends = statuses.filter(f => f.can_join);
-        console.log('[SteamAPI] Filtered casual friends:', casualFriends);
+        const casualFriends = statuses.filter(friend => friend.in_casual_mode);
         const saveResult = await window.electronAPI.saveSettings({
             steam_id,
             auth: auth,
@@ -132,9 +121,9 @@ async function updateFriendsList() {
             avatars: AppState.savedAvatars
         });
         AppState.usingSavedFriends = true;
-        if (window.JoinManager && typeof window.JoinManager.resetAll === "function") {
-            window.JoinManager.resetAll();
-        }
+    if (JoinManager && typeof JoinManager.resetAll === "function") {
+        JoinManager.resetAll();
+    }
         // Передаем уже отфильтрованных друзей в casual для рендера
         AppState.friendsData = casualFriends;
         const joinStates = JoinManager.getJoinStates ? JoinManager.getJoinStates() : {};
@@ -176,8 +165,6 @@ async function startAutoRefresh() {
     }
 }
 
-window.updateFriendsList = updateFriendsList;
-
 // =====================
 // Initialization
 // =====================
@@ -185,7 +172,7 @@ window.updateFriendsList = updateFriendsList;
 document.addEventListener('DOMContentLoaded', async () => {
     if (updateFriendsBtn) updateFriendsBtn.disabled = true;
 
-    setupAppEventListeners();
+    AppEvents.setupAppEventListeners();
 
     if (!document.getElementById('error')) {
         const errorDiv = document.createElement('div');
@@ -217,7 +204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (AppState.savedSettings.avatars && typeof AppState.savedSettings.avatars === 'object') {
                 AppState.savedAvatars = AppState.savedSettings.avatars;
             }
-            validateInputs();
+            AppEvents.validateInputs();
             const token = SteamAPI.extractTokenIfAny(AppState.savedSettings.auth || "");
             if (token) {
                 const info = SteamAPI.parseWebApiToken(token);
@@ -236,7 +223,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 AppState.savedSettings.auth &&
                 AppState.savedSettings.friends_ids &&
                 AppState.savedSettings.friends_ids.length > 0 &&
-                validateApiAuth(AppState.savedSettings.auth)
+                AppValidators.validateApiAuth(AppState.savedSettings.auth)
             ) {
                 window.electronAPI.log('info', `Found ${AppState.savedSettings.friends_ids.length} saved friend IDs in settings`);
                 setTimeout(() => {
@@ -279,10 +266,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (token) {
                 const info = SteamAPI.parseWebApiToken(token);
                 if (info && info.steamid) {
-                    if (steamIdInput && (!steamIdInput.value || steamIdInput.value !== info.steamid)) {
-                        steamIdInput.value = info.steamid;
-                        validateInputs();
-                    }
+            if (steamIdInput && (!steamIdInput.value || steamIdInput.value !== info.steamid)) {
+                steamIdInput.value = info.steamid;
+                AppEvents.validateInputs();
+            }
                     UIManager.showTokenInfoNotification(info);
                 } else {
                     UIManager.hideTokenInfoNotification();
@@ -297,3 +284,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 0);
     }
 });
+
+// Public API for App
+const App = {
+    updateFriendsList
+};
+
+export default App;

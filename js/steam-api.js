@@ -28,6 +28,7 @@ async function getFriendsList(steam_id, auth) {
         const resp = await fetch(url);
         if (!resp.ok) throw new Error(`API_ERROR_${resp.status}`);
         const data = await resp.json();
+        console.log('Steam API Response [GetFriendsList, token]:', data);
         if (!data.response || !data.response.friendslist || !Array.isArray(data.response.friendslist.friends)) {
             throw new Error('EMPTY_FRIENDS_LIST');
         }
@@ -38,6 +39,7 @@ async function getFriendsList(steam_id, auth) {
         if (resp.status === 401) throw new Error('PRIVATE_FRIENDS_LIST');
         if (!resp.ok) throw new Error(`API_ERROR_${resp.status}`);
         const data = await resp.json();
+        console.log('Steam API Response [GetFriendsList, key]:', data);
         if (!data.friendslist || !data.friendslist.friends) throw new Error('EMPTY_FRIENDS_LIST');
         return data.friendslist.friends.map(f => f.steamid);
     }
@@ -73,6 +75,7 @@ async function getPlayerSummaries(steamids, auth) {
         const resp = await fetch(url);
         if (!resp.ok) continue;
         const data = await resp.json();
+        console.log('Steam API Response [GetPlayerSummaries]:', data);
         let players = [];
         if (isToken) {
             if (Array.isArray(data.players)) {
@@ -112,6 +115,7 @@ async function getFriendsStatuses(friend_ids, auth, avatarsCache = {}) {
         const resp = await fetch(url);
         if (!resp.ok) throw new Error(`Failed to fetch player link details: ${resp.status} ${resp.statusText}`);
         const data = await resp.json();
+        console.log('[SteamAPI][RAW] GetFriendsStatuses:', data);
         const accounts = (data.response && data.response.accounts) ? data.response.accounts : [];
 
         let avatarMap = avatarsCache;
@@ -120,35 +124,43 @@ async function getFriendsStatuses(friend_ids, auth, avatarsCache = {}) {
             avatarMap = await getPlayerSummaries(steamids, auth);
         }
 
-        return accounts
-            .filter(acc => (acc.private_data || {}).game_id === "730")
+        const filteredAccounts = accounts
+            .filter(acc => (acc.private_data || {}).game_id === "730");
+        console.log('[SteamAPI][FILTERED] Friends playing CS2:', filteredAccounts);
+
+        const mapped = filteredAccounts
             .map(acc => {
                 const priv = acc.private_data || {};
                 const pub = acc.public_data || {};
                 const rich_presence_kv = priv.rich_presence_kv || "";
                 const rp = parseRichPresence(rich_presence_kv);
-                const status_str = rp.status || "";
+                const status = rp.status || "";
                 const game_server_id = rp.game_server_steam_id;
                 const game_map = rp.game_map || "";
                 const game_score = rp.game_score || "";
-                const connect_val = rp.connect || "";
-                const can_join = rp.game_mode === "casual" && !["", null, "lobby"].includes(rp.game_state);
-                const join_available = can_join && connect_val.startsWith("+gcconnect");
+                const connect = rp.connect || "";
+                const in_casual_mode = rp.game_mode === "casual" && !["", null, "lobby"].includes(rp.game_state);
+                const join_available = in_casual_mode && connect.startsWith("+gcconnect");
                 const steamid = pub.steamid || "";
                 const avatar = avatarMap[steamid]?.avatarfull || avatarMap[steamid]?.avatar || "";
                 return {
                     steamid,
                     personaname: pub.persona_name || "",
-                    status: status_str,
-                    can_join,
+                    status,
+                    in_casual_mode,
                     join_available,
                     game_map,
                     game_score,
-                    game_server_steam_id: game_server_id,
-                    connect: connect_val,
+                    game_server_id,
+                    connect,
                     avatar
                 };
             });
+        const casualFriends = mapped.filter(friend => friend.in_casual_mode);
+        console.log('[SteamAPI][FILTERED] Friends in casual mode:', casualFriends);
+        const joinableFriends = mapped.filter(friend => friend.join_available);
+        console.log('[SteamAPI][FILTERED] Friends you can join:', joinableFriends);
+        return mapped;
     } catch (error) {
         console.error("Error fetching friend statuses:", error);
         throw error;
@@ -175,6 +187,7 @@ async function getFriendConnectInfo(friend_id, auth) {
         const resp = await fetch(url);
         if (!resp.ok) return null;
         const data = await resp.json();
+        console.log('Steam API Response [GetFriendConnectInfo]:', data);
         const accounts = (data.response && data.response.accounts) ? data.response.accounts : [];
         if (!accounts.length) return null;
         const priv = accounts[0].private_data || {};
@@ -210,6 +223,7 @@ async function getUserGameServerSteamId(steam_id, auth) {
         const resp = await fetch(url);
         if (!resp.ok) return null;
         const data = await resp.json();
+        console.log('Steam API Response [GetUserGameServerSteamId]:', data);
         const accounts = (data.response && data.response.accounts) ? data.response.accounts : [];
         if (!accounts.length) return null;
         const priv = accounts[0].private_data || {};
@@ -241,6 +255,7 @@ async function resolveVanityUrl(vanityUrl, auth) {
         const resp = await fetch(url);
         if (!resp.ok) return null;
         const data = await resp.json();
+        console.log('Steam API Response [ResolveVanityUrl]:', data);
         if (data.response && data.response.success === 1) {
             return data.response.steamid;
         }
@@ -321,7 +336,7 @@ function parseRichPresence(kv) {
     };
 }
 
-
+// Public API for SteamAPI
 const SteamAPI = {
     getFriendsList,
     getPlayerSummaries,
