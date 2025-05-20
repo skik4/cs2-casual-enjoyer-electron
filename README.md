@@ -11,7 +11,7 @@
 
 ## How to Run
 
-The easiest way to use the application is to download the prebuilt `.exe` from the [GitHub Releases](https://github.com/skik4/cs2-casual-enjoyer-electron/releases) page and run it directly.  
+The easiest way to use the application is to download the prebuilt `.exe` from the [Releases](https://github.com/skik4/cs2-casual-enjoyer-electron/releases) page and run it directly.  
 No installation of Node.js or other dependencies is required.
 
 ## How to Use
