@@ -4,7 +4,7 @@
 
 ## How It Works
 
-- The app uses Steam Web API requests to monitor your friend's match status.
+- The app uses Steam Web API requests to monitor your friends' match statuses.
 - You can use either a Steam API Key or a session Token (recommended) for authentication.
 - The token is valid for 24 hours and is obtained by redirecting you to the installed Steam client on your computer. After it expires, you'll need to refresh it again through the same process.
 - After you press "Join", the app periodically checks for an available slot in your friend's Casual match. If a slot is found, it attempts to connect. If the connection is successful, the attempts stop; otherwise, the app keeps retrying until it succeeds, your friend leaves the Casual match, or you cancel the process.
